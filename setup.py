@@ -22,9 +22,10 @@ Programming Language :: Python :: 3.2
 """.splitlines()))
 
 module1 = Extension('hjson',
-                    sources = ['./python/hjson.c',
-                               './python/objToJSON.c',
-                               './python/JSONtoObj.c',
+                    sources = ['./python/hjson.cpp',
+                               './python/Encoder.cpp',
+                               './python/dumps.cpp',
+                               # './python/JSONtoObj.cpp',
                                './lib/ultrajsonenc.c',
                                './lib/ultrajsondec.c'],
                     include_dirs = ['./python', './lib'],
@@ -39,8 +40,8 @@ def get_version():
     finally:
         if file:
             file.close()
-    m = re.search(r'#define\s+HYJSON_VERSION\s+"(\d+\.\d+(?:\.\d+)?)"', header)
-    assert m, "version.h must contain HYJSON_VERSION macro"
+    m = re.search(r'#define\s+HJSON_VERSION\s+"(\d+\.\d+(?:\.\d+)?)"', header)
+    assert m, "version.h must contain HJSON_VERSION macro"
     return m.group(1)
 
 f = open('README.rst')

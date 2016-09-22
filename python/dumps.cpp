@@ -41,6 +41,8 @@ http://www.opensource.apple.com/source/tcl/tcl-14/tcl/license.terms
 #include <datetime.h>
 #include <ultrajson.h>
 
+#include "Encoder.hpp"
+
 #define EPOCH_ORD 719163
 static PyObject* type_decimal = NULL;
 
@@ -878,7 +880,9 @@ void Object_endTypeContext(JSOBJ obj, JSONTypeContext *tc) {
 }
 
 const char *Object_getStringValue(JSOBJ obj, JSONTypeContext *tc, size_t *_outLen) {
-  return GET_TC(tc)->PyTypeToJSON(obj, tc, NULL, _outLen);
+  //TODO see later
+  return NULL;
+  //return GET_TC(tc)->PyTypeToJSON(obj, tc, NULL, _outLen);
 }
 
 JSINT64 Object_getLongValue(JSOBJ obj, JSONTypeContext *tc)
@@ -942,7 +946,7 @@ PyObject* dumps(PyObject* self, PyObject *args, PyObject *kwargs) {
   PyObject *newobj;
   PyObject *objectToDump = NULL;
 
-  //Encoder encoder();
+  Encoder encoder();
 
   if (!PyArg_ParseTupleAndKeywords(args, kwargs, "O", kwlist, &objectToDump))
     return NULL;
@@ -953,16 +957,14 @@ PyObject* dumps(PyObject* self, PyObject *args, PyObject *kwargs) {
     return NULL;
   }
 
-  /*
-  if (encoder.errorMsg) {
+  if (encoder.isError) {
     if (ret != buffer) {
       encoder.free(ret);
     }
 
-    PyErr_Format (PyExc_OverflowError, "%s", encoder.errorMsg);
+    PyErr_Format(PyExc_OverflowError, "%s", encoder.errorMsg);
     return NULL;
   }
-  */
 
   newobj = PyString_FromString("json will be here");
 
@@ -1006,7 +1008,7 @@ PyObject* objToJSONFile(PyObject* self, PyObject *args, PyObject *kwargs) {
 
   argtuple = PyTuple_Pack(1, data);
 
-  string = objToJSON (self, argtuple, kwargs);
+  string = dumps(self, argtuple, kwargs);
 
   if (string == NULL)
   {

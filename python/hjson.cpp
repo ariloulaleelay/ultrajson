@@ -44,22 +44,22 @@ PyObject* dumps(PyObject* self, PyObject *args, PyObject *kwargs);
 void initObjToJSON(void);
 
 /* JSONToObj */
-PyObject* JSONToObj(PyObject* self, PyObject *args, PyObject *kwargs);
+//PyObject* JSONToObj(PyObject* self, PyObject *args, PyObject *kwargs);
 
 /* objToJSONFile */
 PyObject* objToJSONFile(PyObject* self, PyObject *args, PyObject *kwargs);
 
 /* JSONFileToObj */
-PyObject* JSONFileToObj(PyObject* self, PyObject *args, PyObject *kwargs);
+//PyObject* JSONFileToObj(PyObject* self, PyObject *args, PyObject *kwargs);
 
 
 #define ENCODER_HELP_TEXT "Use ensure_ascii=false to output UTF-8. Pass in double_precision to alter the maximum digit precision of doubles. Set encode_html_chars=True to encode < > & as unicode escape sequences. Set escape_forward_slashes=False to prevent escaping / characters."
 
 static PyMethodDef hjsonMethods[] = {
   {"dumps", (PyCFunction) dumps, METH_VARARGS | METH_KEYWORDS,  "Converts arbitrary object recursively into JSON. " ENCODER_HELP_TEXT},
-  {"loads", (PyCFunction) JSONToObj, METH_VARARGS | METH_KEYWORDS,  "Converts JSON as string to dict object structure. Use precise_float=True to use high precision float decoder."},
+//  {"loads", (PyCFunction) JSONToObj, METH_VARARGS | METH_KEYWORDS,  "Converts JSON as string to dict object structure. Use precise_float=True to use high precision float decoder."},
   {"dump", (PyCFunction) objToJSONFile, METH_VARARGS | METH_KEYWORDS, "Converts arbitrary object recursively into JSON file. " ENCODER_HELP_TEXT},
-  {"load", (PyCFunction) JSONFileToObj, METH_VARARGS | METH_KEYWORDS, "Converts JSON as file to dict object structure. Use precise_float=True to use high precision float decoder."},
+//  {"load", (PyCFunction) JSONFileToObj, METH_VARARGS | METH_KEYWORDS, "Converts JSON as file to dict object structure. Use precise_float=True to use high precision float decoder."},
   {NULL, NULL, 0, NULL}       /* Sentinel */
 };
 
@@ -100,7 +100,7 @@ PYMODINITFUNC {
     MODINITERROR;
   }
 
-  version_string = PyString_FromString (UJSON_VERSION);
+  version_string = PyString_FromString (HJSON_VERSION);
   PyModule_AddObject (module, "__version__", version_string);
 
 #if PY_MAJOR_VERSION >= 3
