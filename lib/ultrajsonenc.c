@@ -85,33 +85,28 @@ static void SetError (JSOBJ obj, JSONObjectEncoder *enc, const char *message) {
 /*
 FIXME: Keep track of how big these get across several encoder calls and try to make an estimate
 That way we won't run our head into the wall each call */
-void Buffer_Realloc (JSONObjectEncoder *enc, size_t cbNeeded)
-{
+void Buffer_Realloc (JSONObjectEncoder *enc, size_t cbNeeded) {
+
   size_t curSize = enc->end - enc->start;
   size_t newSize = curSize * 2;
   size_t offset = enc->offset - enc->start;
 
-  while (newSize < curSize + cbNeeded)
-  {
+  while (newSize < curSize + cbNeeded) {
     newSize *= 2;
   }
 
-  if (enc->heap)
-  {
-    enc->start = (char *) enc->realloc (enc->start, newSize);
+  if (enc->heap) {
+    enc->start = (char *) enc->realloc(enc->start, newSize);
     if (!enc->start)
     {
       SetError (NULL, enc, "Could not reserve memory block");
       return;
     }
-  }
-  else
-  {
+  } else {
     char *oldStart = enc->start;
     enc->heap = 1;
     enc->start = (char *) enc->malloc (newSize);
-    if (!enc->start)
-    {
+    if (!enc->start) {
       SetError (NULL, enc, "Could not reserve memory block");
       return;
     }
@@ -126,17 +121,14 @@ void Buffer_EscapeString (JSONObjectEncoder *enc, const char *io, const char *en
 
   for (;io < end; io++) {
     switch (*io) {
-      case '\0': (*of++) = '\\'; (*of++) = '\"'; break;
+      case '\0': (*of++) = '\\'; (*of++) = '\0'; break;
       case '\"': (*of++) = '\\'; (*of++) = '\"'; break;
       case '\\': (*of++) = '\\'; (*of++) = '\\'; break;
-      case '\b': (*of++) = '\\'; (*of++) = 'b'; break;
-      case '\f': (*of++) = '\\'; (*of++) = 'f'; break;
       case '\n': (*of++) = '\\'; (*of++) = 'n'; break;
-      case '\r': (*of++) = '\\'; (*of++) = 'r'; break;
       case '\t': (*of++) = '\\'; (*of++) = 't'; break;
 
       default:
-        (*of++) = (*io);
+        *(of++) = *io;
         break;
     }
   }
@@ -154,24 +146,13 @@ void Buffer_EscapeString (JSONObjectEncoder *enc, const char *io, const char *en
 #define Buffer_AppendCharUnchecked(__enc, __chr) \
                 *((__enc)->offset++) = __chr; \
 
-FASTCALL_ATTR INLINE_PREFIX void FASTCALL_MSVC strreverse(char* begin, char* end)
-{
+FASTCALL_ATTR INLINE_PREFIX void FASTCALL_MSVC strreverse(char* begin, char* end) {
   char aux;
   while (end > begin)
   aux = *end, *end-- = *begin, *begin++ = aux;
 }
 
-void Buffer_AppendIndentUnchecked(JSONObjectEncoder *enc, JSINT32 value)
-{
-  int i;
-  if (enc->indent > 0)
-    while (value-- > 0)
-      for (i = 0; i < enc->indent; i++)
-        Buffer_AppendCharUnchecked(enc, ' ');
-}
-
-void Buffer_AppendIntUnchecked(JSONObjectEncoder *enc, JSINT32 value)
-{
+void Buffer_AppendIntUnchecked(JSONObjectEncoder *enc, JSINT32 value) {
   char* wstr;
   JSUINT32 uvalue = (value < 0) ? -value : value;
 
@@ -186,8 +167,7 @@ void Buffer_AppendIntUnchecked(JSONObjectEncoder *enc, JSINT32 value)
   enc->offset += (wstr - (enc->offset));
 }
 
-void Buffer_AppendLongUnchecked(JSONObjectEncoder *enc, JSINT64 value)
-{
+void Buffer_AppendLongUnchecked(JSONObjectEncoder *enc, JSINT64 value) {
   char* wstr;
   JSUINT64 uvalue = (value < 0) ? -value : value;
 
@@ -202,8 +182,7 @@ void Buffer_AppendLongUnchecked(JSONObjectEncoder *enc, JSINT64 value)
   enc->offset += (wstr - (enc->offset));
 }
 
-void Buffer_AppendUnsignedLongUnchecked(JSONObjectEncoder *enc, JSUINT64 value)
-{
+void Buffer_AppendUnsignedLongUnchecked(JSONObjectEncoder *enc, JSUINT64 value) {
   char* wstr;
   JSUINT64 uvalue = value;
 
@@ -217,8 +196,7 @@ void Buffer_AppendUnsignedLongUnchecked(JSONObjectEncoder *enc, JSUINT64 value)
   enc->offset += (wstr - (enc->offset));
 }
 
-int Buffer_AppendDoubleUnchecked(JSOBJ obj, JSONObjectEncoder *enc, double value)
-{
+int Buffer_AppendDoubleUnchecked(JSOBJ obj, JSONObjectEncoder *enc, double value) {
   /* if input is larger than thres_max, revert to exponential */
   const double thres_max = (double) 1e16 - 1;
   int count;
@@ -231,14 +209,12 @@ int Buffer_AppendDoubleUnchecked(JSOBJ obj, JSONObjectEncoder *enc, double value
   int neg;
   double pow10;
 
-  if (value == HUGE_VAL || value == -HUGE_VAL)
-  {
+  if (value == HUGE_VAL || value == -HUGE_VAL) {
     SetError (obj, enc, "Invalid Inf value when encoding double");
     return FALSE;
   }
 
-  if (!(value == value))
-  {
+  if (!(value == value)) {
     SetError (obj, enc, "Invalid Nan value when encoding double");
     return FALSE;
   }
@@ -394,13 +370,34 @@ void encode(JSOBJ obj, JSONObjectEncoder *enc, const char *name, size_t cbName) 
     Buffer_AppendCharUnchecked(enc, '\"');
     Buffer_EscapeString(enc, name, name + cbName);
     Buffer_AppendCharUnchecked(enc, '\"');
-    Buffer_AppendCharUnchecked (enc, ':');
+    Buffer_AppendCharUnchecked(enc, ':');
   }
 
   tc.encoder_prv = enc->prv;
   enc->beginTypeContext(obj, &tc, enc);
 
   switch (tc.type) {
+
+    case JT_UTF8: {
+        value = enc->getStringValue(obj, &tc, &szlen);
+        if (!value) {
+          SetError(obj, enc, "utf-8 encoding error");
+          return;
+        }
+
+        Buffer_Reserve(enc, RESERVE_STRING(szlen));
+        if (enc->errorMsg) {
+          enc->endTypeContext(obj, &tc);
+          return;
+        }
+
+        Buffer_AppendCharUnchecked(enc, '\"');
+        Buffer_EscapeString(enc, value, value + szlen);
+        Buffer_AppendCharUnchecked(enc, '\"');
+
+        break;
+    }
+
     case JT_INVALID:
       return;
 
@@ -496,26 +493,6 @@ void encode(JSOBJ obj, JSONObjectEncoder *enc, const char *name, size_t cbName) 
       break;
     }
 
-    case JT_UTF8: {
-        value = enc->getStringValue(obj, &tc, &szlen);
-        if(!value) {
-          SetError(obj, enc, "utf-8 encoding error");
-          return;
-        }
-
-        Buffer_Reserve(enc, RESERVE_STRING(szlen));
-        if (enc->errorMsg) {
-          enc->endTypeContext(obj, &tc);
-          return;
-        }
-
-        Buffer_AppendCharUnchecked (enc, '\"');
-        Buffer_EscapeString(enc, value, value + szlen);
-        Buffer_AppendCharUnchecked (enc, '\"');
-
-        break;
-    }
-
     case JT_RAW: {
         value = enc->getStringValue(obj, &tc, &szlen);
         if(!value) {
@@ -540,8 +517,7 @@ void encode(JSOBJ obj, JSONObjectEncoder *enc, const char *name, size_t cbName) 
   enc->level --;
 }
 
-char *JSON_EncodeObject(JSOBJ obj, JSONObjectEncoder *enc, char *_buffer, size_t _cbBuffer)
-{
+char *JSON_EncodeObject(JSOBJ obj, JSONObjectEncoder *enc, char *_buffer, size_t _cbBuffer) {
   enc->malloc = enc->malloc ? enc->malloc : malloc;
   enc->free =  enc->free ? enc->free : free;
   enc->realloc = enc->realloc ? enc->realloc : realloc;
@@ -573,7 +549,7 @@ char *JSON_EncodeObject(JSOBJ obj, JSONObjectEncoder *enc, char *_buffer, size_t
   enc->end = enc->start + _cbBuffer;
   enc->offset = enc->start;
 
-  encode (obj, enc, NULL, 0);
+  encode(obj, enc, NULL, 0);
 
   Buffer_Reserve(enc, 1);
 

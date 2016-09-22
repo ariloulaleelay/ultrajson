@@ -21,11 +21,11 @@ Programming Language :: Python :: 3
 Programming Language :: Python :: 3.2
 """.splitlines()))
 
-module1 = Extension('ujson',
-                    sources = ['./python/ujson.c', 
-                               './python/objToJSON.c', 
-                               './python/JSONtoObj.c', 
-                               './lib/ultrajsonenc.c', 
+module1 = Extension('hjson',
+                    sources = ['./python/hjson.c',
+                               './python/objToJSON.c',
+                               './python/JSONtoObj.c',
+                               './lib/ultrajsonenc.c',
                                './lib/ultrajsondec.c'],
                     include_dirs = ['./python', './lib'],
                     extra_compile_args=['-D_GNU_SOURCE'])
@@ -39,17 +39,17 @@ def get_version():
     finally:
         if file:
             file.close()
-    m = re.search(r'#define\s+UJSON_VERSION\s+"(\d+\.\d+(?:\.\d+)?)"', header)
-    assert m, "version.h must contain UJSON_VERSION macro"
+    m = re.search(r'#define\s+HYJSON_VERSION\s+"(\d+\.\d+(?:\.\d+)?)"', header)
+    assert m, "version.h must contain HYJSON_VERSION macro"
     return m.group(1)
 
 f = open('README.rst')
 try:
     README = f.read()
 finally:
-    f.close()    
-    
-setup (name = 'ujson',
+    f.close()
+
+setup (name = 'hjson',
        version = get_version(),
        description = "Ultra fast JSON encoder and decoder for Python",
        long_description = README,
@@ -58,7 +58,7 @@ setup (name = 'ujson',
        author_email="jonas.tarnstrom@esn.me",
        download_url="http://github.com/esnme/ultrajson",
        license="BSD License",
-       platforms=['any'],      
+       platforms=['any'],
        url="http://www.esn.me",
        classifiers=CLASSIFIERS,
        )

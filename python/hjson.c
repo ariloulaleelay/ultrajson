@@ -1,5 +1,5 @@
 /*
-Developed by ESN, an Electronic Arts Inc. studio. 
+Developed by ESN, an Electronic Arts Inc. studio.
 Copyright (c) 2014, Electronic Arts Inc.
 All rights reserved.
 
@@ -17,7 +17,7 @@ derived from this software without specific prior written permission.
 THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
 ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
 WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-DISCLAIMED. IN NO EVENT SHALL ELECTRONIC ARTS INC. BE LIABLE 
+DISCLAIMED. IN NO EVENT SHALL ELECTRONIC ARTS INC. BE LIABLE
 FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
 (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
 LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
@@ -40,7 +40,7 @@ http://www.opensource.apple.com/source/tcl/tcl-14/tcl/license.terms
 #include "version.h"
 
 /* objToJSON */
-PyObject* objToJSON(PyObject* self, PyObject *args, PyObject *kwargs);
+PyObject* dumps(PyObject* self, PyObject *args, PyObject *kwargs);
 void initObjToJSON(void);
 
 /* JSONToObj */
@@ -55,10 +55,8 @@ PyObject* JSONFileToObj(PyObject* self, PyObject *args, PyObject *kwargs);
 
 #define ENCODER_HELP_TEXT "Use ensure_ascii=false to output UTF-8. Pass in double_precision to alter the maximum digit precision of doubles. Set encode_html_chars=True to encode < > & as unicode escape sequences. Set escape_forward_slashes=False to prevent escaping / characters."
 
-static PyMethodDef ujsonMethods[] = {
-  {"encode", (PyCFunction) objToJSON, METH_VARARGS | METH_KEYWORDS, "Converts arbitrary object recursively into JSON. " ENCODER_HELP_TEXT},
-  {"decode", (PyCFunction) JSONToObj, METH_VARARGS | METH_KEYWORDS, "Converts JSON as string to dict object structure. Use precise_float=True to use high precision float decoder."},
-  {"dumps", (PyCFunction) objToJSON, METH_VARARGS | METH_KEYWORDS,  "Converts arbitrary object recursively into JSON. " ENCODER_HELP_TEXT},
+static PyMethodDef hjsonMethods[] = {
+  {"dumps", (PyCFunction) dumps, METH_VARARGS | METH_KEYWORDS,  "Converts arbitrary object recursively into JSON. " ENCODER_HELP_TEXT},
   {"loads", (PyCFunction) JSONToObj, METH_VARARGS | METH_KEYWORDS,  "Converts JSON as string to dict object structure. Use precise_float=True to use high precision float decoder."},
   {"dump", (PyCFunction) objToJSONFile, METH_VARARGS | METH_KEYWORDS, "Converts arbitrary object recursively into JSON file. " ENCODER_HELP_TEXT},
   {"load", (PyCFunction) JSONFileToObj, METH_VARARGS | METH_KEYWORDS, "Converts JSON as file to dict object structure. Use precise_float=True to use high precision float decoder."},
@@ -69,38 +67,36 @@ static PyMethodDef ujsonMethods[] = {
 
 static struct PyModuleDef moduledef = {
   PyModuleDef_HEAD_INIT,
-  "ujson",
+  "hjson",
   0,              /* m_doc */
   -1,             /* m_size */
-  ujsonMethods,   /* m_methods */
+  hjsonMethods,   /* m_methods */
   NULL,           /* m_reload */
   NULL,           /* m_traverse */
   NULL,           /* m_clear */
   NULL            /* m_free */
 };
 
-#define PYMODINITFUNC       PyObject *PyInit_ujson(void)
+#define PYMODINITFUNC       PyObject *PyInit_hjson(void)
 #define PYMODULE_CREATE()   PyModule_Create(&moduledef)
 #define MODINITERROR        return NULL
 
 #else
 
-#define PYMODINITFUNC       PyMODINIT_FUNC initujson(void)
-#define PYMODULE_CREATE()   Py_InitModule("ujson", ujsonMethods)
+#define PYMODINITFUNC       PyMODINIT_FUNC inithjson(void)
+#define PYMODULE_CREATE()   Py_InitModule("hjson", hjsonMethods)
 #define MODINITERROR        return
 
 #endif
 
-PYMODINITFUNC
-{
+PYMODINITFUNC {
   PyObject *module;
   PyObject *version_string;
 
   initObjToJSON();
   module = PYMODULE_CREATE();
 
-  if (module == NULL)
-  {
+  if (module == NULL) {
     MODINITERROR;
   }
 
