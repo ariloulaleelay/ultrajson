@@ -15,14 +15,15 @@ private:
     bool reserve(size_t len);
     bool pushCharUnsafe(char c);
     void pushConstUnsafe(const char * val, size_t length);
-    Py_UNICODE * _writeUcs(Py_UNICODE *from, Py_UNICODE *till);
 
 public:
-    bool isError;
+    char *error;
 
 public:
     Encoder();
     ~Encoder();
+
+    void setError(char * error);
 
     bool pushString(const char * str, size_t length);
     bool pushUcs(Py_UNICODE * str, size_t lengthInBytes);

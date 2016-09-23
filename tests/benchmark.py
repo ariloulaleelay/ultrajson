@@ -254,7 +254,7 @@ def benchmark_array_byte_strings():
 
     test_object = []
     for x in range(256):
-        test_object.append("A pretty long string which is in a list")
+        test_object.append(str("jkdsfhqeoufh0eprf2i 0gu5398th34 f omfoi 3e1hf821egrior3gnroi3th 1 ufb3eofhitp1 3yfu2ebg \n \tfyud 97t14h3 f9wqdun rwhg"))
     run_encode(COUNT)
 
     decode_data = json.dumps(test_object)
@@ -360,13 +360,13 @@ if __name__ == "__main__":
     if len(sys.argv) > 1 and "skip-lib-comps" in sys.argv:
         skip_lib_comparisons = True
 
-    benchmark_array_utf8_strings()
-    benchmark_array_integers()
-    benchmark_array_doubles()
-    benchmark_array_byte_strings()
-    benchmark_medium_complex_object()
-    benchmark_array_true_values()
-    benchmark_array_of_dict_string_int_pairs()
-    benchmark_dict_of_arrays_of_dict_string_int_pairs()
-#    benchmark_complex_object()
+#    benchmark_array_byte_strings()
+#    benchmark_array_utf8_strings()
+#    benchmark_array_integers()
+#    benchmark_array_doubles()
+#    benchmark_medium_complex_object()
+#    benchmark_array_true_values()
+#    benchmark_array_of_dict_string_int_pairs()
+#    benchmark_dict_of_arrays_of_dict_string_int_pairs()
+    benchmark_complex_object()
     results_output_table()
