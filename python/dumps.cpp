@@ -630,6 +630,143 @@ void SetupDictIter(PyObject *dictObj, TypeContext *pc, JSONObjectEncoder *enc) {
   pc->index = 0;
 }
 
+bool TraverseObject(PyObject *obj, Encoder & encoder);
+
+bool TraverseDictKey(PyObject *obj, Encoder & encoder) {
+  if (PyUnicode_Check(obj)) {
+    return encoder.pushUcs(PyUnicode_AS_UNICODE(obj), (size_t) PyUnicode_GET_DATA_SIZE(obj));
+  } else if (PyString_Check(obj)) {
+    return encoder.pushString(PyString_AS_STRING(obj), (size_t) PyString_GET_SIZE(obj));
+  }
+  return false;
+}
+
+bool TraverseDict(PyObject *obj, Encoder & encoder) {
+
+  PyObject *key, *value;
+  Py_ssize_t pos = 0;
+  bool notFirst = false;
+
+  if (!encoder.enterMap())
+    return false;
+
+  while (PyDict_Next(obj, &pos, &key, &value)) {
+    if (notFirst)
+      encoder.pushComma();
+
+    notFirst = true;
+
+    if (!TraverseDictKey(key, encoder))
+      return false;
+
+    encoder.pushColon();
+
+    if (!TraverseObject(value, encoder))
+      return false;
+  }
+  encoder.exitMap();
+  return true;
+}
+
+bool TraverseList(PyObject *obj, Encoder & encoder) {
+  if (!encoder.enterSeq())
+    return false;
+
+  size_t size = PyList_GET_SIZE(obj);
+  for (size_t i = 0; i < size; i++) {
+    if (i > 0)
+      encoder.pushComma();
+    if (!TraverseObject(PyList_GET_ITEM(obj, i), encoder))
+      return false;
+  }
+  encoder.exitSeq();
+  return true;
+}
+
+bool TraverseTuple(PyObject *obj, Encoder & encoder) {
+  if (!encoder.enterSeq())
+    return false;
+
+  size_t size = PyTuple_GET_SIZE(obj);
+  for (size_t i = 0; i < size; i++) {
+    if (i > 0)
+      encoder.pushComma();
+    if (!TraverseObject(PyTuple_GET_ITEM(obj, i), encoder))
+      return false;
+  }
+  encoder.exitSeq();
+  return true;
+}
+
+bool TraverseObject(PyObject *obj, Encoder & encoder) {
+  if (encoder.getDepth() > 100)
+    return false;
+
+  if (PyIter_Check(obj)) {
+    goto ITERABLE;
+  }
+
+  if (PyUnicode_Check(obj)) {
+    return encoder.pushUcs(PyUnicode_AS_UNICODE(obj), (size_t) PyUnicode_GET_DATA_SIZE(obj));
+  } else if (PyBool_Check(obj)) {
+    return encoder.pushBool(obj == Py_True);
+  } else if (PyLong_Check(obj) || PyInt_Check(obj)) {
+    long long value = PyLong_AsLongLong(obj);
+
+    if (!PyErr_Occurred())
+        return encoder.pushInteger(value);
+
+    if (PyErr_ExceptionMatches(PyExc_OverflowError)) {
+      PyErr_Clear();
+      unsigned long long value = PyLong_AsUnsignedLongLong(obj);
+      if (PyErr_Occurred()) {
+        return false;
+      }
+      return encoder.pushInteger(value);
+    }
+    return false;
+  } /*else if (PyInt_Check(obj)) {
+    PRINTMARK();
+#ifdef _LP64
+    pc->PyTypeToJSON = PyIntToINT64; tc->type = JT_LONG;
+#else
+    pc->PyTypeToJSON = PyIntToINT32; tc->type = JT_INT;
+#endif
+    return;
+  } else if (PyFloat_Check(obj) || (type_decimal && PyObject_IsInstance(obj, type_decimal))) {
+    PRINTMARK();
+    pc->PyTypeToJSON = PyFloatToDOUBLE; tc->type = JT_DOUBLE;
+    return;
+  } else if (PyDateTime_Check(obj)) {
+    PRINTMARK();
+    pc->PyTypeToJSON = PyDateTimeToINT64; tc->type = JT_LONG;
+    return;
+  } else if (PyDate_Check(obj)) {
+    PRINTMARK();
+    pc->PyTypeToJSON = PyDateToINT64; tc->type = JT_LONG;
+    return;
+  } else if (obj == Py_None) {
+    PRINTMARK();
+    tc->type = JT_NULL;
+    return;
+  }
+  }*/ else if (PyString_Check(obj)) {
+    return encoder.pushString(PyString_AS_STRING(obj), (size_t) PyString_GET_SIZE(obj));
+  }
+
+ITERABLE:
+
+  if (PyDict_Check(obj)) {
+    return TraverseDict(obj, encoder);
+  } else if (PyList_Check(obj)) {
+    return TraverseList(obj, encoder);
+  } else if (PyTuple_Check(obj)) {
+    return TraverseTuple(obj, encoder);
+  }
+
+  return false;
+}
+
 void Object_beginTypeContext(JSOBJ _obj, JSONTypeContext *tc, JSONObjectEncoder *enc) {
   PyObject *obj, *exc, *iter;
   TypeContext *pc;
@@ -937,44 +1074,31 @@ char *Object_iterGetName(JSOBJ obj, JSONTypeContext *tc, size_t *outLen) {
 }
 
 PyObject* dumps(PyObject* self, PyObject *args, PyObject *kwargs) {
+  Encoder encoder;
 
   static char *kwlist[] = { "obj", NULL };
 
-  char buffer[65536];
-  char *ret;
-
-  PyObject *newobj;
   PyObject *objectToDump = NULL;
 
-  Encoder encoder();
 
   if (!PyArg_ParseTupleAndKeywords(args, kwargs, "O", kwlist, &objectToDump))
     return NULL;
 
   //ret = JSON_EncodeObject(oinput, &encoder, buffer, sizeof(buffer));
+  TraverseObject(objectToDump, encoder);
 
   if (PyErr_Occurred()) {
     return NULL;
   }
 
   if (encoder.isError) {
-    if (ret != buffer) {
-      encoder.free(ret);
-    }
-
-    PyErr_Format(PyExc_OverflowError, "%s", encoder.errorMsg);
+    PyErr_Format(PyExc_OverflowError, "%s", "error will be here"/*encoder.errorMsg*/);
     return NULL;
   }
 
-  newobj = PyString_FromString("json will be here");
+  PyObject * result = PyString_FromStringAndSize(encoder.result(), encoder.resultSize());
 
-  /*
-  if (ret != buffer) {
-    encoder.free(ret);
-  }
-  */
-
-  return newobj;
+  return result;
 }
 
 PyObject* objToJSONFile(PyObject* self, PyObject *args, PyObject *kwargs) {
