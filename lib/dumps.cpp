@@ -86,6 +86,8 @@ struct PyDictIterState
 //#define PRINTMARK() fprintf(stderr, "%s: MARK(%d)\n", __FILE__, __LINE__)
 #define PRINTMARK()
 
+Encoder encoderSingleton;
+
 void init_dumps(void) {
   PyObject* mod_decimal = PyImport_ImportModule("decimal");
   if (mod_decimal) {
@@ -722,11 +724,14 @@ bool TraverseObject(PyObject *obj, Encoder & encoder) {
       return encoder.pushInteger(value);
     }
     return false;
-  } else if (PyFloat_Check(obj) || (type_decimal && PyObject_IsInstance(obj, type_decimal))) {
-    double value = PyFloat_AsDouble(obj);
+  } else if (PyFloat_Check(obj)) {
+    double value = PyFloat_AS_DOUBLE(obj);
     return encoder.pushDouble(value);
   } else if (obj == Py_None) {
     return encoder.pushNone();
+  } else if (type_decimal && PyObject_IsInstance(obj, type_decimal)) {
+    double value = PyFloat_AsDouble(obj);
+    return encoder.pushDouble(value);
   }
   /*else if (PyDateTime_Check(obj)) {
     PRINTMARK();
@@ -1065,7 +1070,6 @@ char *Object_iterGetName(JSOBJ obj, JSONTypeContext *tc, size_t *outLen) {
 }
 
 PyObject* dumps(PyObject* self, PyObject *args, PyObject *kwargs) {
-  Encoder encoder;
 
   static char *kwlist[] = { "obj", NULL };
 
@@ -1075,19 +1079,17 @@ PyObject* dumps(PyObject* self, PyObject *args, PyObject *kwargs) {
   if (!PyArg_ParseTupleAndKeywords(args, kwargs, "O", kwlist, &objectToDump))
     return NULL;
 
-  //ret = JSON_EncodeObject(oinput, &encoder, buffer, sizeof(buffer));
-  TraverseObject(objectToDump, encoder);
+  encoderSingleton.reset();
+  if (!TraverseObject(objectToDump, encoderSingleton)) {
+    PyErr_Format(PyExc_ValueError, "encoding error occured");
+    return NULL;
+  }
 
   if (PyErr_Occurred()) {
     return NULL;
   }
 
-  if (encoder.isError) {
-    PyErr_Format(PyExc_OverflowError, "%s", "error will be here"/*encoder.errorMsg*/);
-    return NULL;
-  }
-
-  PyObject * result = PyString_FromStringAndSize(encoder.result(), encoder.resultSize());
+  PyObject * result = PyString_FromStringAndSize(encoderSingleton.result(), encoderSingleton.resultSize());
 
   return result;
 }

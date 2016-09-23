@@ -15,6 +15,10 @@ Encoder::Encoder():
 }
 
 Encoder::~Encoder() {
+    if (bufferMemoryAllocated) {
+        free(buffer);
+        bufferMemoryAllocated = 0;
+    }
 }
 
 inline bool Encoder::pushCharUnsafe(char c) {
@@ -133,14 +137,28 @@ bool Encoder::pushNone() {
 bool Encoder::reserve(size_t len) {
     len += depth + 2; // always reserve depth extra characters, plus comma and colon
     if (bufferMemoryAllocated == 0) { // we using heap
-        if (out + len - buffer <= sizeof(heap)) // use -1 to check size after single character addition
+        if (out - heap + len < sizeof(heap)) // use -1 to check size after single character addition
             return true;
-        // NOTE allocate 1 bytes more
-        return false;
-        // TODO memory reallocation
+
+        buffer = (char *) malloc(out - heap + len + 1);
+        if (!buffer)
+            return false;
+        bufferMemoryAllocated = out - heap + len + 1;
+        memcpy(buffer, heap, out - heap);
+        out = buffer + (out - heap);
     }
-    return false;
-    // TODO memory allocation
+
+    if (out - buffer + len < bufferMemoryAllocated)
+        return true;
+
+    char * newBuffer = (char *) realloc(buffer, out - buffer + len + 1);
+    if (!newBuffer)
+        return false;
+    bufferMemoryAllocated = out - buffer + len + 1;
+    out = newBuffer + (out - buffer);
+    buffer = newBuffer;
+
+    return true;
 }
 
 const char * Encoder::result() {
@@ -206,4 +224,15 @@ bool Encoder::pushDouble(double value) {
         return false;
     out = dtoa_fast(value, out);
     return true;
+}
+
+void Encoder::reset() {
+    if (bufferMemoryAllocated > sizeof(heap) * 1024) { // it's about 60 mb, don't hold it
+        free(buffer);
+        buffer = heap;
+        bufferMemoryAllocated = 0;
+    }
+    out = buffer;
+    depth = 0;
+    isError = false;
 }

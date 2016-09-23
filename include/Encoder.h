@@ -49,4 +49,7 @@ public:
     const char * result();
 
     size_t getDepth();
+
+    // reset encoder
+    void reset();
 };

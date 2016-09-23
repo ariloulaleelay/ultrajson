@@ -10,6 +10,7 @@ import timeit
 import simplejson
 import ujson
 import hjson
+import rapidjson
 
 
 USER = {"userId": 3381293, "age": 213, "username": "johndoe", "fullname": "John Doe the Second", "isAuthorized": True, "liked": 31231.31231202, "approval": 31.1471, "jobs": [1, 2], "currJob": None}
@@ -33,9 +34,9 @@ def results_record_result(callback, is_encode, count):
     callback_name = callback.__name__
     library = callback_name.split("_")[-1]
     try:
-      results = timeit.repeat("{}()".format(callback_name), "from __main__ import {}".format(callback_name), repeat=10, number=count)
+        results = timeit.repeat("{}()".format(callback_name), "from __main__ import {}".format(callback_name), repeat=10, number=count)
     except TypeError:
-      return
+        return
     result = count / min(results)
     benchmark_results[-1][1 if is_encode else 2][library] = result
 
@@ -43,7 +44,8 @@ def results_record_result(callback, is_encode, count):
 
 
 def results_output_table():
-    LIBRARIES = ("ujson", "hjson", "simplejson", "json")
+    LIBRARIES = ("ujson", "hjson", "rapidjson", "simplejson", "json")
+    LIBRARIES = ("ujson", "hjson", "rapidjson")
 
     uname_system, _, uname_release, uname_version, _, uname_processor = platform.uname()
     print()
@@ -61,7 +63,8 @@ def results_output_table():
     print("- blist     : 1.3.6")
     print("- simplejson: 3.8.1")
     print("- ujson     : 1.34")
-    print("- hjson      : 0.3.5")
+    print("- hjson     : 0.1")
+    print("- rapidjson : 0.4.1")
     print()
 
     column_widths = [max(len(r[0]) for r in benchmark_results)]
@@ -123,6 +126,10 @@ def dumps_with_hjson():
     hjson.dumps(test_object)
 
 
+def dumps_with_rapidjson():
+    rapidjson.dumps(test_object)
+
+
 # =============================================================================
 # JSON encoding with sort_keys=True.
 # =============================================================================
@@ -157,23 +164,29 @@ def loads_with_hjson():
     ujson.loads(decode_data)
 
 
+def loads_with_rapidjson():
+    rapidjson.loads(decode_data)
+
+
 # =============================================================================
 # Benchmarks.
 # =============================================================================
 def run_decode(count):
     results_record_result(loads_with_ujson, False, count)
     if not skip_lib_comparisons:
-        results_record_result(loads_with_simplejson, False, count)
+#        results_record_result(loads_with_simplejson, False, count)
         results_record_result(loads_with_hjson, False, count)
-        results_record_result(loads_with_json, False, count)
+#        results_record_result(loads_with_json, False, count)
+        results_record_result(loads_with_rapidjson, False, count)
 
 
 def run_encode(count):
     results_record_result(dumps_with_ujson, True, count)
     if not skip_lib_comparisons:
-        results_record_result(dumps_with_simplejson, True, count)
+#        results_record_result(dumps_with_simplejson, True, count)
         results_record_result(dumps_with_hjson, True, count)
-        results_record_result(dumps_with_json, True, count)
+#        results_record_result(dumps_with_json, True, count)
+        results_record_result(dumps_with_rapidjson, True, count)
 
 
 def run_encode_sort_keys(count):
@@ -191,6 +204,23 @@ def benchmark_array_doubles():
     test_object = []
     for x in range(256):
         test_object.append(sys.maxsize * random.random())
+    run_encode(COUNT)
+
+    decode_data = json.dumps(test_object)
+    test_object = None
+    run_decode(COUNT)
+
+    decode_data = None
+
+
+def benchmark_array_integers():
+    global decode_data, test_object
+    results_new_benchmark("Array with 256 integers")
+    COUNT = 10000
+
+    test_object = []
+    for x in range(256):
+        test_object.append(int(sys.maxsize * random.random()))
     run_encode(COUNT)
 
     decode_data = json.dumps(test_object)
@@ -313,7 +343,7 @@ def benchmark_complex_object():
     COUNT = 100
 
     with open(os.path.join(os.path.dirname(__file__), "sample.json"), "r") as f:
-       test_object = json.load(f)
+        test_object = json.load(f)
     run_encode(COUNT)
 
     decode_data = json.dumps(test_object)
@@ -330,12 +360,13 @@ if __name__ == "__main__":
     if len(sys.argv) > 1 and "skip-lib-comps" in sys.argv:
         skip_lib_comparisons = True
 
+    benchmark_array_integers()
     benchmark_array_doubles()
-    benchmark_array_utf8_strings()
-    #benchmark_array_byte_strings()
+#    benchmark_array_utf8_strings()
+#    benchmark_array_byte_strings()
     benchmark_medium_complex_object()
-    #benchmark_array_true_values()
-    benchmark_array_of_dict_string_int_pairs()
-    #benchmark_dict_of_arrays_of_dict_string_int_pairs()
-    #benchmark_complex_object()
+#    benchmark_array_true_values()
+#    benchmark_array_of_dict_string_int_pairs()
+#    benchmark_dict_of_arrays_of_dict_string_int_pairs()
+#    benchmark_complex_object()
     results_output_table()
