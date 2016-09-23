@@ -15,6 +15,7 @@ private:
     bool reserve(size_t len);
     bool pushCharUnsafe(char c);
     void pushConstUnsafe(const char * val, size_t length);
+    Py_UNICODE * _writeUcs(Py_UNICODE *from, Py_UNICODE *till);
 
 public:
     bool isError;

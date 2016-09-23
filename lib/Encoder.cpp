@@ -5,6 +5,14 @@
 #include "itoa.h"
 #include "dtoa.h"
 
+typedef uint32_t v4si __attribute__ ((vector_size (16)));
+typedef char v16qi __attribute__ ((vector_size (16)));
+
+int __counter = 0;
+#define TO_MASK(x) (__builtin_ia32_pmovmskb128(reinterpret_cast<v16qi>(x)))
+
+#define PRINTMARK(x) printf("MARK %s %d\n", (x), __counter++)
+
 Encoder::Encoder():
     depth(0),
     bufferMemoryAllocated(0),
@@ -27,7 +35,7 @@ inline bool Encoder::pushCharUnsafe(char c) {
 }
 
 bool Encoder::pushString(const char * str, size_t len) {
-    if (!reserve(len * 6 / 4 + 2)) // 2 for quotes
+    if (!reserve(len * 6 / 4 + 2 + 16)) // 2 for quotes 16 for simd vector
         return false;
 
     pushCharUnsafe('\"');
@@ -71,16 +79,9 @@ bool Encoder::pushString(const char * str, size_t len) {
     return true;
 }
 
-bool Encoder::pushUcs(Py_UNICODE * str, size_t lengthInBytes) {
-    if (!reserve(lengthInBytes * 6 / 4 + 2)) // 2 for quotes
-        return false;
-
-    pushCharUnsafe('\"');
-
-    Py_UNICODE * to = str + lengthInBytes / sizeof(Py_UNICODE);
-
+inline Py_UNICODE * Encoder::_writeUcs(Py_UNICODE * str, Py_UNICODE * till) {
     wchar_t c;
-    for (; str < to; ) {
+    for (; str < till; ) {
         c = *str;
         if (c <= 0x7F) {
             switch(c) {
@@ -100,6 +101,10 @@ bool Encoder::pushUcs(Py_UNICODE * str, size_t lengthInBytes) {
                     *(out++) = '\\'; *(out++) = 'n'; str++;
                     break;
 
+                case '\r':
+                    *(out++) = '\r'; *(out++) = 'r'; str++;
+                    break;
+
                 case '\0':
                     *(out++) = '\\'; *(out++) = '0'; str++;
                     break;
@@ -108,22 +113,22 @@ bool Encoder::pushUcs(Py_UNICODE * str, size_t lengthInBytes) {
                     *(out++) = *(str++);
                     break;
             }
-        } else if (*str <= 0x7FF) {
+        } else if (c <= 0x7FF) {
             *(out++) = (char) (0xC0 | ( c >> 6 ));
             *(out++) = (char) (0x80 | ( c & 0x3F));
             str++;
-        } else if (*str <= 0x7FFF) {
+        } else if (c <= 0x7FFF) {
             *(out++) = (char) (0xE0 | (c >> 12 ));
             *(out++) = (char) (0x80 | ((c >> 6) & 0x3F ));
             *(out++) = (char) (0x80 | (c & 0x3F));
             str++;
-        } else if (*str <= 0x7FFFF) {
+        } else if (c <= 0x7FFFF) {
             *(out++) = (char) (0xF0 | ((c >> 18)));
             *(out++) = (char) (0x80 | ((c >> 12) & 0x3F));
             *(out++) = (char) (0x80 | ((c >> 6) & 0x3F));
             *(out++) = (char) (0x80 | (c & 0x3F));
             str++;
-        } else if (*str <= 0x7FFFFF) {
+        } else if (c <= 0x7FFFFF) {
             *(out++) = (char) (0xF8 | ((c >> 24)));
             *(out++) = (char) (0x80 | ((c >> 18) & 0x3F));
             *(out++) = (char) (0x80 | ((c >> 12) & 0x3F));
@@ -139,6 +144,100 @@ bool Encoder::pushUcs(Py_UNICODE * str, size_t lengthInBytes) {
             *(out++) = (char) (0x80 | (c & 0x3F));
             str++;
         }
+    }
+    return str;
+}
+
+bool Encoder::pushUcs(Py_UNICODE * str, size_t lengthInBytes) {
+    if (!reserve(lengthInBytes * 6 / 4 + 2 + 16)) // 2 for quotes 16 for vector
+        return false;
+
+    pushCharUnsafe('\"');
+
+    static const v4si asciiCodes = { 0x7F, 0x7F, 0x7F, 0x7F };
+    size_t len = lengthInBytes / sizeof(Py_UNICODE);
+
+    union {
+        v4si vec4si;
+        v16qi vec16qi;
+        uint64_t u64vec[2];
+        uint32_t u32vec[4];
+        char u8vec[16];
+    };
+
+    if ((uint64_t) str % 16) { // align to 16 bytes
+        uint64_t l = ((uint64_t) str % 16) / sizeof(Py_UNICODE);
+        if (l > len)
+            l = len;
+        str = _writeUcs(str, str + l);
+        len -= l;
+    }
+
+    while (len >= 4) {
+        vec4si = *((v4si *) str);
+        if (!TO_MASK(vec4si > asciiCodes)) {
+            static const v16qi unsafe1 = {92, 10, 34, 9, 92, 10, 34, 9, 92, 10, 34, 9, 92, 10, 34, 9};
+            static const v16qi unsafe2 = {13, 13, 0, 0, 13, 13, 0, 0, 13, 13, 0, 0, 13, 13, 0, 0};
+
+            v16qi shuffle = {0, 0, 0, 0, 4, 4, 4, 4, 8, 8, 8, 8, 12, 12, 12, 12};
+            vec16qi = __builtin_shuffle(vec16qi, shuffle);
+            v4si unsafe_markers = (vec16qi == unsafe1) | (vec16qi == unsafe2);
+
+            if (TO_MASK(unsafe_markers)) {
+                // there is unsafe characters
+                for (int i = 0; i < 4; i++) {
+                    switch(unsafe_markers[i]) {
+                        default:
+                            *(out++) = (char) vec4si[i];
+                            break;
+
+                        case 0x000000FF: // 92 '\'
+                            *(out++) = '\\';
+                            *(out++) = '\\';
+                            break;
+
+                        case 0x0000FF00: // 10 '\n'
+                            *(out++) = '\\';
+                            *(out++) = 'n';
+                            break;
+
+                        case 0x00FF0000: // 34 '"'
+                            *(out++) = '\\';
+                            *(out++) = '\"';
+                            break;
+
+                        case 0xFFFF0000: // it's zero
+                            *(out++) = '\\';
+                            *(out++) = '0';
+                            break;
+
+                        case 0x0000FFFF: // 13 '\r'
+                            *(out++) = '\\';
+                            *(out++) = 'r';
+                            break;
+
+                        case 0xFF000000: // 9 '\t'
+                            *(out++) = '\\';
+                            *(out++) = 't';
+                            break;
+                    }
+                }
+            } else {
+                // safe ascii it's fastest case
+                static const v16qi reposition = {0, 4, 8, 12, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+                vec16qi = __builtin_shuffle(vec16qi, reposition);
+                *((uint32_t *) out) = u32vec[0];
+                out += 4;
+            }
+        } else {
+            _writeUcs(str, str + 4);
+        }
+        str += 4;
+        len -= 4;
+    }
+
+    if (len > 0) {
+        _writeUcs(str, str + len);
     }
 
     pushCharUnsafe('\"');

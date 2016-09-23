@@ -24,7 +24,7 @@ module1 = Extension(
   'hjson',
   sources=glob.glob('./lib/*.c*'),
   include_dirs=['./include/'],
-  extra_compile_args=['-D_GNU_SOURCE', '-O3']
+  extra_compile_args=['-D_GNU_SOURCE', '-O3', '-msse3']
 )
 
 
