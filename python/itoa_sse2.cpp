@@ -101,7 +101,7 @@ char * u64toa_sse2(uint64_t value, char* buffer) {
             if (v >= 10)
                 *buffer++ = gDigitsLut[d2];
             *buffer++ = gDigitsLut[d2 + 1];
-            return buffer + 1;
+            return buffer;
         } else {
             // Experiment shows that this case SSE2 is slower
 #if 0

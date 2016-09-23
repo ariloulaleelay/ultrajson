@@ -135,14 +135,14 @@ bool Encoder::pushComma() {
 }
 
 bool Encoder::pushInteger(int64_t value) {
-    if (!reserve(20))
+    if (!reserve(32))
         return false;
     out = i64toa_sse2(value, out);
     return true;
 }
 
 bool Encoder::pushInteger(uint64_t value) {
-    if (!reserve(20))
+    if (!reserve(32))
         return false;
     out = u64toa_sse2(value, out);
     return true;
