@@ -732,21 +732,24 @@ bool TraverseObject(PyObject *obj, Encoder & encoder) {
   } else if (type_decimal && PyObject_IsInstance(obj, type_decimal)) {
     double value = PyFloat_AsDouble(obj);
     return encoder.pushDouble(value);
-  }
-  /*else if (PyDateTime_Check(obj)) {
-    PRINTMARK();
-    pc->PyTypeToJSON = PyDateTimeToINT64; tc->type = JT_LONG;
-    return;
+  } else if (PyDateTime_Check(obj)) {
+    return encoder.pushDateTime(
+        PyDateTime_GET_YEAR(obj),
+        PyDateTime_GET_MONTH(obj),
+        PyDateTime_GET_DAY(obj),
+        PyDateTime_DATE_GET_HOUR(obj),
+        PyDateTime_DATE_GET_MINUTE(obj),
+        PyDateTime_DATE_GET_SECOND(obj)
+    );
   } else if (PyDate_Check(obj)) {
-    PRINTMARK();
-    pc->PyTypeToJSON = PyDateToINT64; tc->type = JT_LONG;
-    return;
+    return encoder.pushDate(
+        PyDateTime_GET_YEAR(obj),
+        PyDateTime_GET_MONTH(obj),
+        PyDateTime_GET_DAY(obj)
+    );
   } else if (obj == Py_None) {
-    PRINTMARK();
-    tc->type = JT_NULL;
-    return;
-  }
-  }*/ else if (PyString_Check(obj)) {
+    return encoder.pushNone();
+  } else if (PyString_Check(obj)) {
     return encoder.pushString(PyString_AS_STRING(obj), (size_t) PyString_GET_SIZE(obj));
   }
 
@@ -1003,70 +1006,6 @@ INVALID:
   PyObject_Free(tc->prv);
   tc->prv = NULL;
   return;
-}
-
-void Object_endTypeContext(JSOBJ obj, JSONTypeContext *tc) {
-  Py_XDECREF(GET_TC(tc)->newObj);
-
-  PyObject_Free(tc->prv);
-  tc->prv = NULL;
-}
-
-const char *Object_getStringValue(JSOBJ obj, JSONTypeContext *tc, size_t *_outLen) {
-  //TODO see later
-  return NULL;
-  //return GET_TC(tc)->PyTypeToJSON(obj, tc, NULL, _outLen);
-}
-
-JSINT64 Object_getLongValue(JSOBJ obj, JSONTypeContext *tc)
-{
-  JSINT64 ret;
-  GET_TC(tc)->PyTypeToJSON (obj, tc, &ret, NULL);
-  return ret;
-}
-
-JSUINT64 Object_getUnsignedLongValue(JSOBJ obj, JSONTypeContext *tc)
-{
-  JSUINT64 ret;
-  GET_TC(tc)->PyTypeToJSON (obj, tc, &ret, NULL);
-  return ret;
-}
-
-JSINT32 Object_getIntValue(JSOBJ obj, JSONTypeContext *tc)
-{
-  JSINT32 ret;
-  GET_TC(tc)->PyTypeToJSON (obj, tc, &ret, NULL);
-  return ret;
-}
-
-double Object_getDoubleValue(JSOBJ obj, JSONTypeContext *tc)
-{
-  double ret;
-  GET_TC(tc)->PyTypeToJSON (obj, tc, &ret, NULL);
-  return ret;
-}
-
-static void Object_releaseObject(JSOBJ _obj)
-{
-  Py_DECREF( (PyObject *) _obj);
-}
-
-int Object_iterNext(JSOBJ obj, JSONTypeContext *tc)
-{
-  return GET_TC(tc)->iterNext(obj, tc);
-}
-
-void Object_iterEnd(JSOBJ obj, JSONTypeContext *tc)
-{
-  GET_TC(tc)->iterEnd(obj, tc);
-}
-
-JSOBJ Object_iterGetValue(JSOBJ obj, JSONTypeContext *tc) {
-  return GET_TC(tc)->iterGetValue(obj, tc);
-}
-
-char *Object_iterGetName(JSOBJ obj, JSONTypeContext *tc, size_t *outLen) {
-  return GET_TC(tc)->iterGetName(obj, tc, outLen);
 }
 
 PyObject* dumps(PyObject* self, PyObject *args, PyObject *kwargs) {

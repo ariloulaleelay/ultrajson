@@ -27,58 +27,13 @@ inline bool Encoder::pushCharUnsafe(char c) {
 }
 
 bool Encoder::pushString(const char * str, size_t len) {
-    if (!reserve(len * 5 / 4 + 2)) // 2 for quotes
+    if (!reserve(len * 6 / 4 + 2)) // 2 for quotes
         return false;
 
     pushCharUnsafe('\"');
     const char * to = str + len;
     for(;str < to;) {
-        switch(*str) {
-            case '\\':
-                *(out++) = '\\'; *(out++) = '\\'; str++;
-                break;
-
-            case '\"':
-                *(out++) = '\\'; *(out++) = '\"'; str++;
-                break;
-
-            case '\t':
-                *(out++) = '\\'; *(out++) = 't'; str++;
-                break;
-
-            case '\n':
-                *(out++) = '\\'; *(out++) = 'n'; str++;
-                break;
-
-            case '\0':
-                *(out++) = '\\'; *(out++) = '0'; str++;
-                break;
-
-            default:
-                *(out++) = *(str++);
-                break;
-        }
-    }
-    //memcpy(out, str, len);
-    //out += len;
-    pushCharUnsafe('\"');
-
-    return true;
-}
-
-bool Encoder::pushUcs(Py_UNICODE * str, size_t lengthInBytes) {
-    if (!reserve(lengthInBytes * 5 / 4 + 2)) // 2 for quotes
-        return false;
-
-    pushCharUnsafe('\"');
-
-    Py_UNICODE * to = str + lengthInBytes / sizeof(Py_UNICODE);
-
-    for (; str < to; ) {
-        if (*str > 127) {
-            *(out++) = (char) (0xC0 | ( *(str) >> 6 ));
-            *(out++) = (char) (0x80 | ( *(str++) & 0x3F));
-        } else {
+        if (*str < 127) {
             switch(*str) {
                 case '\\':
                     *(out++) = '\\'; *(out++) = '\\'; str++;
@@ -104,6 +59,85 @@ bool Encoder::pushUcs(Py_UNICODE * str, size_t lengthInBytes) {
                     *(out++) = *(str++);
                     break;
             }
+        } else { // do utf-8 escaping
+            *(out++) = (char) (0xC0 | ( *(str) >> 6 ));
+            *(out++) = (char) (0x80 | ( *(str++) & 0x3F));
+        }
+    }
+    //memcpy(out, str, len);
+    //out += len;
+    pushCharUnsafe('\"');
+
+    return true;
+}
+
+bool Encoder::pushUcs(Py_UNICODE * str, size_t lengthInBytes) {
+    if (!reserve(lengthInBytes * 6 / 4 + 2)) // 2 for quotes
+        return false;
+
+    pushCharUnsafe('\"');
+
+    Py_UNICODE * to = str + lengthInBytes / sizeof(Py_UNICODE);
+
+    wchar_t c;
+    for (; str < to; ) {
+        c = *str;
+        if (c <= 0x7F) {
+            switch(c) {
+                case '\\':
+                    *(out++) = '\\'; *(out++) = '\\'; str++;
+                    break;
+
+                case '\"':
+                    *(out++) = '\\'; *(out++) = '\"'; str++;
+                    break;
+
+                case '\t':
+                    *(out++) = '\\'; *(out++) = 't'; str++;
+                    break;
+
+                case '\n':
+                    *(out++) = '\\'; *(out++) = 'n'; str++;
+                    break;
+
+                case '\0':
+                    *(out++) = '\\'; *(out++) = '0'; str++;
+                    break;
+
+                default:
+                    *(out++) = *(str++);
+                    break;
+            }
+        } else if (*str <= 0x7FF) {
+            *(out++) = (char) (0xC0 | ( c >> 6 ));
+            *(out++) = (char) (0x80 | ( c & 0x3F));
+            str++;
+        } else if (*str <= 0x7FFF) {
+            *(out++) = (char) (0xE0 | (c >> 12 ));
+            *(out++) = (char) (0x80 | ((c >> 6) & 0x3F ));
+            *(out++) = (char) (0x80 | (c & 0x3F));
+            str++;
+        } else if (*str <= 0x7FFFF) {
+            *(out++) = (char) (0xF0 | ((c >> 18)));
+            *(out++) = (char) (0x80 | ((c >> 12) & 0x3F));
+            *(out++) = (char) (0x80 | ((c >> 6) & 0x3F));
+            *(out++) = (char) (0x80 | (c & 0x3F));
+            str++;
+        } else if (*str <= 0x7FFFFF) {
+            *(out++) = (char) (0xF8 | ((c >> 24)));
+            *(out++) = (char) (0x80 | ((c >> 18) & 0x3F));
+            *(out++) = (char) (0x80 | ((c >> 12) & 0x3F));
+            *(out++) = (char) (0x80 | ((c >> 6) & 0x3F));
+            *(out++) = (char) (0x80 | (c & 0x3F));
+            str++;
+        } else {
+            *(out++) = (char) (0xFC | ((c >> 30) & 0x01)); // & 0x01 protects us from bad utf
+            *(out++) = (char) (0x80 | ((c >> 24 & 0x3F)));
+            *(out++) = (char) (0x80 | ((c >> 18) & 0x3F));
+            *(out++) = (char) (0x80 | ((c >> 12) & 0x3F));
+            *(out++) = (char) (0x80 | ((c >> 6) & 0x3F));
+            *(out++) = (char) (0x80 | (c & 0x3F));
+            str++;
         }
     }
 
@@ -118,19 +152,23 @@ void Encoder::pushConstUnsafe(const char * val, size_t length) {
 }
 
 bool Encoder::pushBool(bool val) {
-    if (!reserve(5)) // 5 for false
+    if (!reserve(8)) // for single value
         return false;
-    if (val)
-        pushConstUnsafe("true", 4);
-    else
-        pushConstUnsafe("false", 5);
+    if (val) {
+        *((uint32_t *) out) = 0x65757274; // ascii true in hex
+        out += 4;
+    } else {
+        *((uint64_t *) out) = 0x00000065736C6166UL; // ascii false in hex
+        out += 5;
+    }
     return true;
 }
 
 bool Encoder::pushNone() {
     if (!reserve(4)) // 4 for null
         return false;
-    pushConstUnsafe("null", 4);
+    *((uint32_t *) out) = 0x6C6C756E; // asci null
+    out += 4;
     return true;
 }
 
@@ -206,14 +244,14 @@ bool Encoder::pushComma() {
 }
 
 bool Encoder::pushInteger(int64_t value) {
-    if (!reserve(32))
+    if (!reserve(22))
         return false;
     out = i64toa_sse2(value, out);
     return true;
 }
 
 bool Encoder::pushInteger(uint64_t value) {
-    if (!reserve(32))
+    if (!reserve(22))
         return false;
     out = u64toa_sse2(value, out);
     return true;
@@ -223,6 +261,65 @@ bool Encoder::pushDouble(double value) {
     if (!reserve(64))
         return false;
     out = dtoa_fast(value, out);
+    return true;
+}
+
+bool Encoder::pushDateTime(uint64_t year, uint8_t month, uint8_t day, uint8_t hour, uint8_t minute, uint8_t second) {
+    if (!reserve(22))
+        return false;
+
+    *(out++) = '\"';
+    *(out++) = year / 1000 - '0';
+    year = year % 1000;
+    *(out++) = year / 100 - '0';
+    year = year % 100;
+    *(out++) = year / 10 - '0';
+    *(out++) = year % 10 - '0';
+
+    *(out++) = '-';
+    *(out++) = month / 10 - '0';
+    *(out++) = month % 10 - '0';
+
+    *(out++) = '-';
+    *(out++) = day / 10 - '0';
+    *(out++) = day % 10 - '0';
+
+    *(out++) = ' ';
+    *(out++) = hour / 10 - '0';
+    *(out++) = hour % 10 - '0';
+
+    *(out++) = ':';
+    *(out++) = minute / 10 - '0';
+    *(out++) = minute % 10 - '0';
+
+    *(out++) = ':';
+    *(out++) = second / 10 - '0';
+    *(out++) = second % 10 - '0';
+    *(out++) = '\"';
+    return true;
+}
+
+bool Encoder::pushDate(uint64_t year, uint8_t month, uint8_t day) {
+    if (!reserve(12))
+        return false;
+
+    *(out++) = '\"';
+    *(out++) = year / 1000 - '0';
+    year = year % 1000;
+    *(out++) = year / 100 - '0';
+    year = year % 100;
+    *(out++) = year / 10 - '0';
+    *(out++) = year % 10 - '0';
+
+    *(out++) = '-';
+    *(out++) = month / 10 - '0';
+    *(out++) = month % 10 - '0';
+
+    *(out++) = '-';
+    *(out++) = day / 10 - '0';
+    *(out++) = day % 10 - '0';
+    *(out++) = '\"';
+
     return true;
 }
 

@@ -177,7 +177,7 @@ def run_decode(count):
 #        results_record_result(loads_with_simplejson, False, count)
         results_record_result(loads_with_hjson, False, count)
 #        results_record_result(loads_with_json, False, count)
-        results_record_result(loads_with_rapidjson, False, count)
+#        results_record_result(loads_with_rapidjson, False, count)
 
 
 def run_encode(count):
@@ -186,7 +186,7 @@ def run_encode(count):
 #        results_record_result(dumps_with_simplejson, True, count)
         results_record_result(dumps_with_hjson, True, count)
 #        results_record_result(dumps_with_json, True, count)
-        results_record_result(dumps_with_rapidjson, True, count)
+#        results_record_result(dumps_with_rapidjson, True, count)
 
 
 def run_encode_sort_keys(count):
@@ -360,13 +360,13 @@ if __name__ == "__main__":
     if len(sys.argv) > 1 and "skip-lib-comps" in sys.argv:
         skip_lib_comparisons = True
 
+    benchmark_array_utf8_strings()
     benchmark_array_integers()
     benchmark_array_doubles()
-#    benchmark_array_utf8_strings()
-#    benchmark_array_byte_strings()
+    benchmark_array_byte_strings()
     benchmark_medium_complex_object()
-#    benchmark_array_true_values()
-#    benchmark_array_of_dict_string_int_pairs()
-#    benchmark_dict_of_arrays_of_dict_string_int_pairs()
+    benchmark_array_true_values()
+    benchmark_array_of_dict_string_int_pairs()
+    benchmark_dict_of_arrays_of_dict_string_int_pairs()
 #    benchmark_complex_object()
     results_output_table()

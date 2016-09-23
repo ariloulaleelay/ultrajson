@@ -35,6 +35,11 @@ public:
     bool pushNone();
 
 
+    // custom types
+    bool pushDate(uint64_t year, uint8_t month, uint8_t day);
+    bool pushDateTime(uint64_t year, uint8_t month, uint8_t day, uint8_t hour, uint8_t minute, uint8_t second);
+
+
     // constants
     bool pushColon();
     bool pushComma();

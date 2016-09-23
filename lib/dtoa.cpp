@@ -7,6 +7,7 @@
 char * dtoa_fast(double value, char * buffer) {
     static const double pow10 = 1000000000;
 
+    // TODO do it faster
     if (value > 0xFFFFFFFFFFFFFFFFUL) {
         char buf[64];
         sprintf(buf, "%.15e", value);
@@ -22,7 +23,6 @@ char * dtoa_fast(double value, char * buffer) {
 
     uint64_t whole = (uint64_t) value;
     buffer = u64toa_sse2(whole, buffer);
-    return buffer;
 
     uint64_t frac = (uint64_t)((value - whole) * pow10);
 
