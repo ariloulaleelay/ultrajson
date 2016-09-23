@@ -708,14 +708,14 @@ bool TraverseObject(PyObject *obj, Encoder & encoder) {
   } else if (PyBool_Check(obj)) {
     return encoder.pushBool(obj == Py_True);
   } else if (PyLong_Check(obj) || PyInt_Check(obj)) {
-    long long value = PyLong_AsLongLong(obj);
+    int64_t value = PyLong_AsLongLong(obj);
 
     if (!PyErr_Occurred())
         return encoder.pushInteger(value);
 
     if (PyErr_ExceptionMatches(PyExc_OverflowError)) {
       PyErr_Clear();
-      unsigned long long value = PyLong_AsUnsignedLongLong(obj);
+      uint64_t value = PyLong_AsUnsignedLongLong(obj);
       if (PyErr_Occurred()) {
         return false;
       }

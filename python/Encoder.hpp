@@ -29,10 +29,11 @@ public:
     bool pushBool(bool val);
 
     // numeric
-    bool pushInteger(long long value);
-    bool pushInteger(unsigned long long value);
+    bool pushInteger(int64_t value);
+    bool pushInteger(uint64_t value);
     bool pushDouble(double value);
     bool pushNone();
+
 
     // constants
     bool pushColon();

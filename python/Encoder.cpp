@@ -2,6 +2,7 @@
 #include <cstdio>
 
 #include "Encoder.hpp"
+#include <itoa_sse2.hpp>
 
 Encoder::Encoder():
     depth(0),
@@ -133,33 +134,17 @@ bool Encoder::pushComma() {
     return pushCharUnsafe(',');
 }
 
-bool Encoder::pushInteger(long long value) {
+bool Encoder::pushInteger(int64_t value) {
     if (!reserve(20))
         return false;
-    char buf[20];
-    char *p = buf;
-    while (value > 0) {
-        *(p++) = value % 10 + '0';
-        value = value / 10;
-    }
-    while (p > buf) {
-        *(out++) = *(--p);
-    }
+    out = i64toa_sse2(value, out);
     return true;
 }
 
-bool Encoder::pushInteger(unsigned long long value) {
+bool Encoder::pushInteger(uint64_t value) {
     if (!reserve(20))
         return false;
-    char buf[20];
-    char *p = buf;
-    while (value > 0) {
-        *(p++) = value % 10 + '0';
-        value = value / 10;
-    }
-    while (p > buf) {
-        *(out++) = *(--p);
-    }
+    out = u64toa_sse2(value, out);
     return true;
 }
 
