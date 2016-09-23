@@ -69,6 +69,13 @@ bool Encoder::pushBool(bool val) {
     return true;
 }
 
+bool Encoder::pushNone() {
+    if (!reserve(4)) // 4 for null
+        return false;
+    pushConstUnsafe("null", 4);
+    return true;
+}
+
 bool Encoder::reserve(size_t len) {
     len += depth + 2; // always reserve depth extra characters, plus comma and colon
     if (bufferMemoryAllocated == 0) { // we using heap
@@ -155,3 +162,14 @@ bool Encoder::pushInteger(unsigned long long value) {
     }
     return true;
 }
+
+bool Encoder::pushDouble(double value) {
+    if (!reserve(20))
+        return false;
+    char buf[20];
+    sprintf(buf, "%f", value);
+    memcpy(out, buf, strlen(buf));
+    out += strlen(buf);
+    return true;
+}
+

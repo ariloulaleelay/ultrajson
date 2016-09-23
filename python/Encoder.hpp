@@ -31,6 +31,8 @@ public:
     // numeric
     bool pushInteger(long long value);
     bool pushInteger(unsigned long long value);
+    bool pushDouble(double value);
+    bool pushNone();
 
     // constants
     bool pushColon();

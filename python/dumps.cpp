@@ -86,16 +86,13 @@ struct PyDictIterState
 //#define PRINTMARK() fprintf(stderr, "%s: MARK(%d)\n", __FILE__, __LINE__)
 #define PRINTMARK()
 
-void initObjToJSON(void)
-{
+void init_dumps(void) {
   PyObject* mod_decimal = PyImport_ImportModule("decimal");
-  if (mod_decimal)
-  {
+  if (mod_decimal) {
     type_decimal = PyObject_GetAttrString(mod_decimal, "Decimal");
     Py_INCREF(type_decimal);
     Py_DECREF(mod_decimal);
-  }
-  else
+  } else
     PyErr_Clear();
 
   PyDateTime_IMPORT;
@@ -725,19 +722,13 @@ bool TraverseObject(PyObject *obj, Encoder & encoder) {
       return encoder.pushInteger(value);
     }
     return false;
-  } /*else if (PyInt_Check(obj)) {
-    PRINTMARK();
-#ifdef _LP64
-    pc->PyTypeToJSON = PyIntToINT64; tc->type = JT_LONG;
-#else
-    pc->PyTypeToJSON = PyIntToINT32; tc->type = JT_INT;
-#endif
-    return;
   } else if (PyFloat_Check(obj) || (type_decimal && PyObject_IsInstance(obj, type_decimal))) {
-    PRINTMARK();
-    pc->PyTypeToJSON = PyFloatToDOUBLE; tc->type = JT_DOUBLE;
-    return;
-  } else if (PyDateTime_Check(obj)) {
+    double value = PyFloat_AsDouble(obj);
+    return encoder.pushDouble(value);
+  } else if (obj == Py_None) {
+    return encoder.pushNone();
+  }
+  /*else if (PyDateTime_Check(obj)) {
     PRINTMARK();
     pc->PyTypeToJSON = PyDateTimeToINT64; tc->type = JT_LONG;
     return;

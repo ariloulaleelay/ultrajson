@@ -41,7 +41,7 @@ http://www.opensource.apple.com/source/tcl/tcl-14/tcl/license.terms
 
 /* objToJSON */
 PyObject* dumps(PyObject* self, PyObject *args, PyObject *kwargs);
-void initObjToJSON(void);
+void init_dumps(void);
 
 /* JSONToObj */
 //PyObject* JSONToObj(PyObject* self, PyObject *args, PyObject *kwargs);
@@ -93,7 +93,7 @@ PYMODINITFUNC {
   PyObject *module;
   PyObject *version_string;
 
-  initObjToJSON();
+  init_dumps();
   module = PYMODULE_CREATE();
 
   if (module == NULL) {
