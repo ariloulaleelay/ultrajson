@@ -146,7 +146,7 @@ char * u64toa_sse2(uint64_t value, char* buffer) {
             *buffer++ = gDigitsLut[d3 + 1];
             *buffer++ = gDigitsLut[d4];
             *buffer++ = gDigitsLut[d4 + 1];
-            return buffer + 1;
+            return buffer;
 #endif
         }
     }
