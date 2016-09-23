@@ -26,8 +26,36 @@ bool Encoder::pushString(const char * str, size_t len) {
         return false;
 
     pushCharUnsafe('\"');
-    memcpy(out, str, len);
-    out += len;
+    const char * to = str + len;
+    for(;str < to;) {
+        switch(*str) {
+            case '\\':
+                *(out++) = '\\'; *(out++) = '\\'; str++;
+                break;
+
+            case '\"':
+                *(out++) = '\\'; *(out++) = '\"'; str++;
+                break;
+
+            case '\t':
+                *(out++) = '\\'; *(out++) = 't'; str++;
+                break;
+
+            case '\n':
+                *(out++) = '\\'; *(out++) = 'n'; str++;
+                break;
+
+            case '\0':
+                *(out++) = '\\'; *(out++) = '0'; str++;
+                break;
+
+            default:
+                *(out++) = *(str++);
+                break;
+        }
+    }
+    //memcpy(out, str, len);
+    //out += len;
     pushCharUnsafe('\"');
 
     return true;
@@ -46,7 +74,31 @@ bool Encoder::pushUcs(Py_UNICODE * str, size_t lengthInBytes) {
             *(out++) = (char) (0xC0 | ( *(str) >> 6 ));
             *(out++) = (char) (0x80 | ( *(str++) & 0x3F));
         } else {
-            *(out++) = *(str++);
+            switch(*str) {
+                case '\\':
+                    *(out++) = '\\'; *(out++) = '\\'; str++;
+                    break;
+
+                case '\"':
+                    *(out++) = '\\'; *(out++) = '\"'; str++;
+                    break;
+
+                case '\t':
+                    *(out++) = '\\'; *(out++) = 't'; str++;
+                    break;
+
+                case '\n':
+                    *(out++) = '\\'; *(out++) = 'n'; str++;
+                    break;
+
+                case '\0':
+                    *(out++) = '\\'; *(out++) = '0'; str++;
+                    break;
+
+                default:
+                    *(out++) = *(str++);
+                    break;
+            }
         }
     }
 
