@@ -41,7 +41,7 @@ http://www.opensource.apple.com/source/tcl/tcl-14/tcl/license.terms
 #include <datetime.h>
 #include <ultrajson.h>
 
-#include "Encoder.hpp"
+#include "Encoder.h"
 
 #define EPOCH_ORD 719163
 static PyObject* type_decimal = NULL;
