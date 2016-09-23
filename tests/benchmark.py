@@ -9,7 +9,7 @@ import timeit
 
 import simplejson
 import ujson
-import yajl
+import hjson
 
 
 USER = {"userId": 3381293, "age": 213, "username": "johndoe", "fullname": "John Doe the Second", "isAuthorized": True, "liked": 31231.31231202, "approval": 31.1471, "jobs": [1, 2], "currJob": None}
@@ -43,7 +43,7 @@ def results_record_result(callback, is_encode, count):
 
 
 def results_output_table():
-    LIBRARIES = ("ujson", "yajl", "simplejson", "json")
+    LIBRARIES = ("ujson", "hjson", "simplejson", "json")
 
     uname_system, _, uname_release, uname_version, _, uname_processor = platform.uname()
     print()
@@ -61,7 +61,7 @@ def results_output_table():
     print("- blist     : 1.3.6")
     print("- simplejson: 3.8.1")
     print("- ujson     : 1.34")
-    print("- yajl      : 0.3.5")
+    print("- hjson      : 0.3.5")
     print()
 
     column_widths = [max(len(r[0]) for r in benchmark_results)]
@@ -119,8 +119,8 @@ def dumps_with_ujson():
     ujson.dumps(test_object, ensure_ascii=False)
 
 
-def dumps_with_yajl():
-    yajl.dumps(test_object)
+def dumps_with_hjson():
+    hjson.dumps(test_object)
 
 
 # =============================================================================
@@ -153,8 +153,8 @@ def loads_with_ujson():
     ujson.loads(decode_data)
 
 
-def loads_with_yajl():
-    yajl.loads(decode_data)
+def loads_with_hjson():
+    ujson.loads(decode_data)
 
 
 # =============================================================================
@@ -164,7 +164,7 @@ def run_decode(count):
     results_record_result(loads_with_ujson, False, count)
     if not skip_lib_comparisons:
         results_record_result(loads_with_simplejson, False, count)
-        results_record_result(loads_with_yajl, False, count)
+        results_record_result(loads_with_hjson, False, count)
         results_record_result(loads_with_json, False, count)
 
 
@@ -172,7 +172,7 @@ def run_encode(count):
     results_record_result(dumps_with_ujson, True, count)
     if not skip_lib_comparisons:
         results_record_result(dumps_with_simplejson, True, count)
-        results_record_result(dumps_with_yajl, True, count)
+        results_record_result(dumps_with_hjson, True, count)
         results_record_result(dumps_with_json, True, count)
 
 
@@ -330,14 +330,12 @@ if __name__ == "__main__":
     if len(sys.argv) > 1 and "skip-lib-comps" in sys.argv:
         skip_lib_comparisons = True
 
-    benchmark_array_doubles()
-    """
+    #benchmark_array_doubles()
     benchmark_array_utf8_strings()
-    benchmark_array_byte_strings()
+    #benchmark_array_byte_strings()
     benchmark_medium_complex_object()
-    benchmark_array_true_values()
+    #benchmark_array_true_values()
     benchmark_array_of_dict_string_int_pairs()
-    benchmark_dict_of_arrays_of_dict_string_int_pairs()
-    benchmark_complex_object()
-    """
+    #benchmark_dict_of_arrays_of_dict_string_int_pairs()
+    #benchmark_complex_object()
     results_output_table()

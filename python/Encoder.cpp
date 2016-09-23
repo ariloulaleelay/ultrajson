@@ -149,12 +149,45 @@ bool Encoder::pushInteger(uint64_t value) {
 }
 
 bool Encoder::pushDouble(double value) {
-    if (!reserve(20))
+    if (!reserve(128))
         return false;
-    char buf[20];
-    sprintf(buf, "%f", value);
-    memcpy(out, buf, strlen(buf));
-    out += strlen(buf);
+    char buf[128];
+
+    if (value > 1e16 - 1) {
+        sprintf(buf, "%.15e", value);
+        memcpy(out, buf, strlen(buf));
+        out += strlen(buf);
+        return true;
+    }
+
+    double pow10 = 1000000000;
+    int leadingZeroes = 9; // zeroes in pow10
+    int neg = (value < 0) ? 1 : 0;
+    if (neg)
+        value = -value;
+
+    uint64_t whole = (uint64_t) value;
+    double tmp = (value - whole) * pow10;
+    uint64_t frac = (uint64_t)(tmp);
+    double diff = tmp - frac;
+
+    if (diff >= 0.5) {
+        ++frac;
+        /* handle rollover, e.g.  case 0.99 with prec 1 is 1.0  */
+        if (frac >= pow10) {
+            frac = 0;
+            ++whole;
+        }
+    }
+
+    if (neg)
+        pushCharUnsafe('-');
+    out = u64toa_sse2(whole, out);
+    pushCharUnsafe('.');
+    leadingZeroes -= (u64toa_sse2(frac, buf) - buf - 1);
+    while (leadingZeroes--)
+        *(out++) = '0';
+    while (!(frac % 10)) frac /= 10;
+    out = u64toa_sse2(frac, out);
     return true;
 }
-
