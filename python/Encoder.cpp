@@ -187,7 +187,8 @@ bool Encoder::pushDouble(double value) {
     leadingZeroes -= (u64toa_sse2(frac, buf) - buf - 1);
     while (leadingZeroes--)
         *(out++) = '0';
-    while (!(frac % 10)) frac /= 10;
+    if (frac != 0)
+        while (!(frac % 10)) frac /= 10;
     out = u64toa_sse2(frac, out);
     return true;
 }

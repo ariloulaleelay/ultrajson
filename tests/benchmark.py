@@ -330,7 +330,7 @@ if __name__ == "__main__":
     if len(sys.argv) > 1 and "skip-lib-comps" in sys.argv:
         skip_lib_comparisons = True
 
-    #benchmark_array_doubles()
+    benchmark_array_doubles()
     benchmark_array_utf8_strings()
     #benchmark_array_byte_strings()
     benchmark_medium_complex_object()
