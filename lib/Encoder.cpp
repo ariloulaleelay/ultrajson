@@ -18,7 +18,8 @@ Encoder::Encoder():
     bufferMemoryAllocated(0),
     buffer(heap),
     out(buffer),
-    error(NULL)
+    error(NULL),
+    exceptionObject(PyExc_ValueError)
 {
 }
 
@@ -63,8 +64,16 @@ bool Encoder::pushString(const char * str, size_t len) {
                         *(out++) = '\\'; *(out++) = 't';
                         break;
 
+                    case '\f':
+                        *(out++) = '\\'; *(out++) = 'f';
+                        break;
+
+                    case '\b':
+                        *(out++) = '\\'; *(out++) = 'b';
+                        break;
+
                     case '\r':
-                        *(out++) = '\\'; *(out++) = 't';
+                        *(out++) = '\\'; *(out++) = 'r';
                         break;
 
                     case '\n':
@@ -72,7 +81,12 @@ bool Encoder::pushString(const char * str, size_t len) {
                         break;
 
                     case '\0':
-                        *(out++) = '\\'; *(out++) = '0';
+                        *(out++) = '\\';
+                        *(out++) = 'u';
+                        *(out++) = '0';
+                        *(out++) = '0';
+                        *(out++) = '0';
+                        *(out++) = '0';
                         break;
                 }
             }
@@ -117,8 +131,16 @@ bool Encoder::pushUcs(Py_UNICODE * str, size_t lengthInBytes) {
                         *(out++) = '\\'; *(out++) = 't';
                         break;
 
+                    case '\f':
+                        *(out++) = '\\'; *(out++) = 'f';
+                        break;
+
+                    case '\b':
+                        *(out++) = '\\'; *(out++) = 'b';
+                        break;
+
                     case '\r':
-                        *(out++) = '\\'; *(out++) = 't';
+                        *(out++) = '\\'; *(out++) = 'r';
                         break;
 
                     case '\n':
@@ -126,7 +148,12 @@ bool Encoder::pushUcs(Py_UNICODE * str, size_t lengthInBytes) {
                         break;
 
                     case '\0':
-                        *(out++) = '\\'; *(out++) = '0';
+                        *(out++) = '\\';
+                        *(out++) = 'u';
+                        *(out++) = '0';
+                        *(out++) = '0';
+                        *(out++) = '0';
+                        *(out++) = '0';
                         break;
                 }
             }
@@ -176,6 +203,7 @@ void Encoder::pushConstUnsafe(const char * val, size_t length) {
 bool Encoder::pushBool(bool val) {
     if (!reserve(8)) // for single value
         return false;
+    // TODO use constant dependent on byte order
     if (val) {
         *((uint32_t *) out) = 0x65757274; // ascii true in hex
         out += 4;
@@ -189,7 +217,7 @@ bool Encoder::pushBool(bool val) {
 bool Encoder::pushNone() {
     if (!reserve(4)) // 4 for null
         return false;
-    *((uint32_t *) out) = 0x6C6C756E; // asci null
+    *((uint32_t *) out) = 0x6C6C756E; // ascii null
     out += 4;
     return true;
 }
@@ -282,41 +310,69 @@ bool Encoder::pushInteger(uint64_t value) {
 bool Encoder::pushDouble(double value) {
     if (!reserve(64))
         return false;
+    if (value == HUGE_VAL || value == -HUGE_VAL) {
+        error = "Inf value";
+        exceptionObject = PyExc_OverflowError;
+        return false;
+    }
+    if (!(value == value)) {
+        error = "NaN value";
+        exceptionObject = PyExc_OverflowError;
+        return false;
+    }
     out = dtoa_fast(value, out);
     return true;
 }
 
-bool Encoder::pushDateTime(uint64_t year, uint8_t month, uint8_t day, uint8_t hour, uint8_t minute, uint8_t second) {
-    if (!reserve(22))
+bool Encoder::pushDateTime(uint64_t year, uint8_t month, uint8_t day, uint8_t hour, uint8_t minute, uint8_t second, uint64_t microsecond) {
+    if (!reserve(29))
         return false;
 
     *(out++) = '\"';
-    *(out++) = year / 1000 - '0';
+
+    *(out++) = ((year / 1000) % 10) + '0';
     year = year % 1000;
-    *(out++) = year / 100 - '0';
+    *(out++) = ((year / 100) % 10) + '0';
     year = year % 100;
-    *(out++) = year / 10 - '0';
-    *(out++) = year % 10 - '0';
+    *(out++) = year / 10 + '0';
+    *(out++) = year % 10 + '0';
 
     *(out++) = '-';
-    *(out++) = month / 10 - '0';
-    *(out++) = month % 10 - '0';
+    *(out++) = month / 10 + '0';
+    *(out++) = month % 10 + '0';
 
     *(out++) = '-';
-    *(out++) = day / 10 - '0';
-    *(out++) = day % 10 - '0';
+    *(out++) = day / 10 + '0';
+    *(out++) = day % 10 + '0';
 
-    *(out++) = ' ';
-    *(out++) = hour / 10 - '0';
-    *(out++) = hour % 10 - '0';
-
-    *(out++) = ':';
-    *(out++) = minute / 10 - '0';
-    *(out++) = minute % 10 - '0';
+    *(out++) = 'T';
+    *(out++) = hour / 10 + '0';
+    *(out++) = hour % 10 + '0';
 
     *(out++) = ':';
-    *(out++) = second / 10 - '0';
-    *(out++) = second % 10 - '0';
+    *(out++) = minute / 10 + '0';
+    *(out++) = minute % 10 + '0';
+
+    *(out++) = ':';
+    *(out++) = second / 10 + '0';
+    *(out++) = second % 10 + '0';
+
+    *(out++) = '.';
+    *((uint64_t*) out) = 0x30303030L; // set all 4 leading zeroes at once
+    if (microsecond > 99999) {
+    } else if (microsecond > 9999) {
+        out += 1;
+    } else if (microsecond > 999) {
+        out += 2;
+    } else if (microsecond > 99) {
+        out += 3;
+    } else if (microsecond > 9) {
+        out += 4;
+    } else {
+        out += 5;
+    }
+    out = u64toa_sse2(microsecond, out);
+
     *(out++) = '\"';
     return true;
 }
@@ -326,20 +382,20 @@ bool Encoder::pushDate(uint64_t year, uint8_t month, uint8_t day) {
         return false;
 
     *(out++) = '\"';
-    *(out++) = year / 1000 - '0';
+    *(out++) = year / 1000 + '0';
     year = year % 1000;
-    *(out++) = year / 100 - '0';
+    *(out++) = year / 100 + '0';
     year = year % 100;
-    *(out++) = year / 10 - '0';
-    *(out++) = year % 10 - '0';
+    *(out++) = year / 10 + '0';
+    *(out++) = year % 10 + '0';
 
     *(out++) = '-';
-    *(out++) = month / 10 - '0';
-    *(out++) = month % 10 - '0';
+    *(out++) = month / 10 + '0';
+    *(out++) = month % 10 + '0';
 
     *(out++) = '-';
-    *(out++) = day / 10 - '0';
-    *(out++) = day % 10 - '0';
+    *(out++) = day / 10 + '0';
+    *(out++) = day % 10 + '0';
     *(out++) = '\"';
 
     return true;
@@ -354,4 +410,5 @@ void Encoder::reset() {
     out = buffer;
     depth = 0;
     error = NULL;
+    exceptionObject = PyExc_ValueError;
 }

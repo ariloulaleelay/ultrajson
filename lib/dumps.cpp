@@ -132,9 +132,39 @@ bool TraverseTuple(PyObject *obj, Encoder & encoder) {
   return true;
 }
 
+bool TraverseSet(PyObject *obj, Encoder & encoder) {
+  if (!encoder.enterSeq())
+    return false;
+
+  PyObject * iter = PyObject_GetIter(obj);
+  PyObject * item;
+  bool isFirst = true;
+
+  if (iter == NULL)
+    return false;
+
+  while((item = PyIter_Next(iter))) {
+    if (isFirst)
+      isFirst = false;
+    else
+      encoder.pushComma();
+
+    if (!TraverseObject(item, encoder)) {
+      Py_DECREF(item);
+      Py_DECREF(iter);
+      return false;
+    }
+    Py_DECREF(item);
+  }
+  Py_DECREF(iter);
+  encoder.exitSeq();
+  return true;
+}
+
 bool TraverseObject(PyObject *obj, Encoder & encoder) {
   if (encoder.getDepth() > 1000) {
     encoder.error = "Maximum depth reached. Recursion?";
+    encoder.exceptionObject = PyExc_OverflowError;
     return false;
   }
 
@@ -158,6 +188,8 @@ bool TraverseObject(PyObject *obj, Encoder & encoder) {
       PyErr_Clear();
       uint64_t value = PyLong_AsUnsignedLongLong(obj);
       if (PyErr_Occurred()) {
+        encoder.error = "number too big";
+        encoder.exceptionObject = PyExc_OverflowError;
         return false;
       }
       return encoder.pushInteger(value);
@@ -178,7 +210,8 @@ bool TraverseObject(PyObject *obj, Encoder & encoder) {
         PyDateTime_GET_DAY(obj),
         PyDateTime_DATE_GET_HOUR(obj),
         PyDateTime_DATE_GET_MINUTE(obj),
-        PyDateTime_DATE_GET_SECOND(obj)
+        PyDateTime_DATE_GET_SECOND(obj),
+        PyDateTime_DATE_GET_MICROSECOND(obj)
     );
   } else if (PyDate_Check(obj)) {
     return encoder.pushDate(
@@ -196,6 +229,8 @@ ITERABLE:
     return TraverseList(obj, encoder);
   } else if (PyTuple_Check(obj)) {
     return TraverseTuple(obj, encoder);
+  } else if (PySet_Check(obj)) {
+    return TraverseSet(obj, encoder);
   }
 
   encoder.error = "Can't find serialization method for object";
@@ -214,7 +249,7 @@ PyObject* dumps(PyObject* self, PyObject *args, PyObject *kwargs) {
 
   encoderSingleton.reset();
   if (!TraverseObject(objectToDump, encoderSingleton)) {
-    PyErr_Format(PyExc_ValueError, "encoding error occured %s", encoderSingleton.error ? encoderSingleton.error : "unknown error");
+    PyErr_Format(encoderSingleton.exceptionObject, encoderSingleton.error ? encoderSingleton.error : "unknown hjson error");
     return NULL;
   }
 
