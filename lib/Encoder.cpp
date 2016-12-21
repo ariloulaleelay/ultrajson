@@ -308,7 +308,7 @@ bool Encoder::pushInteger(uint64_t value) {
 }
 
 bool Encoder::pushDouble(double value) {
-    if (!reserve(64))
+    if (!reserve(64)) // min value for dtoa_fast is 33
         return false;
     if (value == HUGE_VAL || value == -HUGE_VAL) {
         error = "Inf value";

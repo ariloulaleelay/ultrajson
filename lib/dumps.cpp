@@ -65,7 +65,7 @@ void init_dumps(void) {
 
 bool TraverseObject(PyObject *obj, Encoder & encoder);
 
-bool TraverseDictKey(PyObject *obj, Encoder & encoder) {
+inline bool TraverseDictKey(PyObject *obj, Encoder & encoder) {
   if (PyUnicode_Check(obj)) {
     return encoder.pushUcs(PyUnicode_AS_UNICODE(obj), (size_t) PyUnicode_GET_DATA_SIZE(obj));
   } else if (PyString_Check(obj)) {
