@@ -20,44 +20,44 @@ Programming Language :: Python :: 3.2
 """.splitlines()))
 
 
-module1 = Extension(
-  'hjson',
-  sources=glob.glob('./lib/*.c*'),
-  include_dirs=['./include/'],
-  extra_compile_args=['-D_GNU_SOURCE', '-O3', '-msse3']
+c_module = Extension(
+    'helljson',
+    sources=glob.glob('./lib/*.c*'),
+    include_dirs=['./include/'],
+    extra_compile_args=['-D_GNU_SOURCE', '-O3', '-msse3']
 )
 
 
 def get_version():
     filename = os.path.join(os.path.dirname(__file__), './include/version.h')
-    file = None
     try:
-        file = open(filename)
-        header = file.read()
+        version_file = open(filename)
+        header = version_file.read()
     finally:
-        if file:
-            file.close()
-    m = re.search(r'#define\s+HJSON_VERSION\s+"(\d+\.\d+(?:\.\d+)?)"', header)
-    assert m, "version.h must contain HJSON_VERSION macro"
+        if version_file:
+            version_file.close()
+    m = re.search(r'#define\s+HELLJSON_VERSION\s+"(\d+\.\d+(?:\.\d+)?)"', header)
+    assert m, "version.h must contain HELLJSON_VERSION macro"
     return m.group(1)
 
-f = open('README.rst')
-try:
-    README = f.read()
-finally:
-    f.close()
+
+def get_readme():
+    try:
+        f = open('README.rst')
+        return f.read()
+    finally:
+        f.close()
 
 setup(
-    name='hjson',
+    name='helljson',
     version=get_version(),
-    description="Ultra fast JSON encoder and decoder for Python",
-    long_description=README,
-    ext_modules=[module1],
-    author="Jonas Tarnstrom",
-    author_email="jonas.tarnstrom@esn.me",
-    download_url="http://github.com/esnme/ultrajson",
+    description="Yet another fast JSON encoder/decoder for Python",
+    long_description=get_readme(),
+    ext_modules=[c_module],
+    author="Andrey Proskurnev",
+    author_email="andrey@proskurnev.ru",
+    download_url="http://github.com/ariloulaleelay/helljson",
     license="BSD License",
     platforms=['any'],
-    url="http://www.esn.me",
     classifiers=CLASSIFIERS,
 )
